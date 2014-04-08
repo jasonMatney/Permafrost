@@ -232,42 +232,69 @@ write.table(coords[-ho,], "./raw/coords.mod", row.names=F, col.names=F, sep="\t"
 ####################
 
 covs <- cbind(y,x)
-slopes <- covs$slope
+slopes <- as.matrix(covs$slope)
 temps <- covs$temp
 heat <- covs$heatload
 ctis <- covs$cti
 pf <- covs$y
 
-#binned.slopes=cut(slopes, breaks=c(0.00, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.49, 0.56, 0.63, 0.7,
-#                                   1.02, 1.34, 1.66, 1.98, 2.30, 2.62, 2.94, 3.26, 3.58, 3.90,
-#                                   6.075,  8.250, 10.425, 12.600, 14.775, 16.950, 19.125, 21.300, 23.475, 25.650, 27.825, 30, Inf), labels=c(as.character(0:31),'30+'))
+binned.slopes=cut(slopes, breaks=c(0.00, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.49, 0.56, 0.63, 0.7,
+                                   1.02, 1.34, 1.66, 1.98, 2.30, 2.62, 2.94, 3.26, 3.58, 3.90,
+                                   6.075,  8.250, 10.425, 12.600, 14.775, 16.950, 19.125, 21.300, 23.475, 25.650, 27.825, 30, Inf), labels=c(as.character(0:31),'30+'))
 
-binned.slopes=cut(slopes, breaks=c(0:35), labels=c(as.character(1:35)))
+slopes[slopes < 6.04e-08] <- NA
+binned.slopes=cut2(slopes, m=100)#, labels=c(as.character(1:35)))
 binned.temps=cut(temps, breaks=c(-15:15), labels=c(as.character(-15:14)))
 binned.heatload=cut(heat, breaks=c(seq(0,200,10)), labels=c(as.character(seq(10,200,10))))
 binned.cti=cut(ctis, breaks=c(seq(0,105,5)), labels=c(as.character(0:20)))
 covs=cbind(covs,binned.slopes, binned.temps, binned.heatload, binned.cti)
 
-heights <- tapply(covs$y,binned.temps,mean)
+heights <- tapply(covs$y,binned.slopes,mean)
 
 # Change Heatload to HLI
-png("png/tempbins.png", width=585, height=585, family="Courier")
+png("png/slopebins.png", width=585, height=585, family="Courier")
 #postscript('png/slopebins.eps', width=8, height=8,horizontal = FALSE, onefile = FALSE, paper = "special",pointsize=18, family = "ComputerModern", encoding = "TeXtext.enc")
 barplot(heights, ylim=c(0,1),
-        xlim=c(-25,25),
         ylab="Probability of permafrost",
-        xlab="Mean annual temperature",     
+        xlab="Slope",     
         col="lightgrey")
-
-                                        #, xaxt="n")
- #axis(1, lwd.ticks=0,at=0:20, labels=as.character(seq(0,100,5)))
- #text(5, 0.8, "Flat")
- #text(5.1, 0.75, "0 to 0.7%")
- #text(18, 0.8, "Low Slope")
- #text(18.1, 0.75, "0.7 to 3.9%")
- #text(32.5, 0.8, "High Slope")
- #text(32.5, 0.75, "3.9% and above")
+axis(1, lwd.ticks=0,at=seq(0,47,1.5), labels=c(as.character(0:31)))#as.character(seq(0,250,5)))
+ text(9, 0.8, "Flat")
+ text(9.1, 0.75, "0 to 0.7%")
+ text(24, 0.8, "Low Slope")
+ text(24, 0.75, "0.7 to 3.9%")
+ text(38.7, 0.8, "High Slope")
+ text(38.7, 0.75, "3.9% and above")
 box(lty="solid")
-rug(temps, side=3)
+#rug(slopes, side=3)
 #lines(x=mat[,2],y=mat[,1],col='red')
 dev.off()
+
+
+## Generate some sample data
+
+
+postscript('png/heatbins.eps', width=8, height=8,horizontal = FALSE, onefile = FALSE, paper = "special",pointsize=18, family = "ComputerModern", encoding = "TeXtext.enc")
+
+# png("png/ctibins.png", width=585, height=585, family="Courier")
+
+## Sort it by slope (x-values)
+covs <- covs[order(covs$heatload), ]
+
+## Set up the plot with a continuous x-axis
+plot(
+    x=covs$heatload, 
+    y=covs$y, 
+    type='n',
+    xlab='HLI',
+    ylab='Probability of permafrost',
+    frame.plot=FALSE
+)
+
+## Split the data into bins, and plot each rectangle individually
+for (bin in split(covs, ceiling(seq(nrow(covs))/100))) {
+    with(bin, rect(min(heatload), 0, max(heatload), mean(y), col='lightgrey'))
+}
+rm(bin)
+dev.off()
+
